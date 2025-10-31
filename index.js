@@ -2,7 +2,10 @@ const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 const sgMail = require('@sendgrid/mail');
 
+// Inicializar Firebase Admin
 admin.initializeApp();
+
+// Configurar SendGrid con tu API Key
 sgMail.setApiKey(functions.config().sendgrid.key);
 
 // Función para enviar email de confirmación
@@ -32,7 +35,7 @@ exports.sendConfirmationEmail = functions.firestore
         }
     });
 
-// Función para enviar email final
+// Función para enviar email final cuando se confirma
 exports.sendFinalConfirmation = functions.firestore
     .document('reservations/{reservationId}')
     .onUpdate(async (change, context) => {
@@ -53,10 +56,9 @@ exports.sendFinalConfirmation = functions.firestore
         return null;
     });
 
-// Función para enviar email de confirmación
+// Función para enviar el email de confirmación (con link)
 async function sendConfirmationEmail(reservation, reservationId) {
-    
-    const confirmationLink = `https://UIUZANTO.github.io/restaurante-reservas/confirm.html?token=${reservation.confirmationToken}&id=${reservationId}`;
+    const confirmationLink = `https://IUUZANTO.github.io/restaurante-reservas/confirm.html?token=${reservation.confirmationToken}&id=${reservationId}`;
     
     const msg = {
         to: reservation.customerEmail,
@@ -99,7 +101,7 @@ async function sendConfirmationEmail(reservation, reservationId) {
     await sgMail.send(msg);
 }
 
-// Función para email final
+// Función para enviar email final de confirmación
 async function sendFinalConfirmationEmail(reservation, reservationId) {
     const msg = {
         to: reservation.customerEmail,
