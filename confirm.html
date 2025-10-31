@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Confirmar Reserva - Restaurante Sabores</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            margin: 0;
+        }
+        
+        .confirmation-container {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            max-width: 500px;
+            width: 100%;
+        }
+        
+        .success { color: #2c5530; }
+        .error { color: #d63031; }
+        .loading { color: #666; }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #2c5530;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 2s linear infinite;
+            margin: 20px auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .btn {
+            background: #2c5530;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            margin-top: 20px;
+        }
+    </style>
+    
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+</head>
+<body>
+    <div class="confirmation-container">
+        <div id="loadingMessage">
+            <h2>Confirmando tu reserva...</h2>
+            <div class="spinner"></div>
+            <p>Por favor espera</p>
+        </div>
+        
+        <div id="successMessage" style="display: none;">
+            <h2 class="success">¡Reserva Confirmada!</h2>
+            <p>Tu reserva ha sido confirmada exitosamente.</p>
+            <p>Te hemos enviado un email con todos los detalles.</p>
+            <a href="index.html" class="btn">Hacer otra reserva</a>
+        </div>
+        
+        <div id="errorMessage" style="display: none;">
+            <h2 class="error">Error al confirmar</h2>
+            <p id="errorText">Ha ocurrido un error al confirmar tu reserva.</p>
+            <a href="index.html" class="btn">Volver al inicio</a>
+        </div>
+    </div>
+
+    <script>
+        // Configuración de Firebase (la misma que en index.html)
+        const firebaseConfig = {
+            apiKey: "AIzaSyCz4aRXgg49pF1mS8IkT7yYHXYhiSlrNuA",
+            authDomain: "restaurante-reservas-a9f2a.firebaseapp.com",
+            projectId: "restaurante-reservas-a9f2a",
+            storageBucket: "restaurante-reservas-a9f2a.firebasestorage.app",
+            messagingSenderId: "294128269783",
+            appId: "1:294128269783:web:04cfc6552c4f8b5dbbb392"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // Procesar confirmación cuando carga la página
+        document.addEventListener('DOMContentLoaded', async function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const token = urlParams.get('token');
+            const reservationId = urlParams.get('id');
+
+            if (!token || !reservationId) {
+                showError('Link de confirmación inválido');
+                return;
+            }
+
+            try {
+                // Buscar la reserva
+                const docRef = db.collection('reservations').doc(reservationId);
+                const doc = await docRef.get();
+
+                if (!doc.exists) {
+                    showError('Reserva no encontrada');
+                    return;
+                }
+
+                const reservation = doc.data();
+
+                // Verificar token
+                if (reservation.confirmationToken !== token) {
+                    showError('Token de confirmación inválido');
+                    return;
+                }
+
+                // Verificar que no esté ya confirmada
+                if (reservation.status === 'confirmed') {
+                    showError('Esta reserva ya estaba confirmada');
+                    return;
+                }
+
+                // Actualizar estado a "confirmed"
+                await docRef.update({
+                    status: 'confirmed',
+                    confirmedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                // Mostrar éxito
+                document.getElementById('loadingMessage').style.display = 'none';
+                document.getElementById('successMessage').style.display = 'block';
+
+            } catch (error) {
+                console.error('Error confirmando reserva:', error);
+                showError('Error al confirmar la reserva: ' + error.message);
+            }
+        });
+
+        function showError(message) {
+            document.getElementById('loadingMessage').style.display = 'none';
+            document.getElementById('errorMessage').style.display = 'block';
+            document.getElementById('errorText').textContent = message;
+        }
+    </script>
+</body>
+</html>
