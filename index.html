@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Reservas - Restaurante Sabores</title>
     <style>
-         :root {
+        /* [Mantener todos los estilos CSS existentes] */
+        :root {
             --primary-color: #2c5530;
             --secondary-color: #e8f4ea;
             --accent-color: #d4af37;
@@ -225,6 +226,12 @@
             border: 1px solid #d63031;
         }
 
+        .alert.info {
+            background: #e3f2fd;
+            color: #1565c0;
+            border: 1px solid #1565c0;
+        }
+
         @media (max-width: 768px) {
             .container {
                 grid-template-columns: 1fr;
@@ -242,55 +249,13 @@
                 grid-template-columns: 1fr;
             }
         }
-        /* [Mantener todos los estilos anteriores] */
-        :root {
-            --primary-color: #2c5530;
-            --secondary-color: #e8f4ea;
-            --accent-color: #d4af37;
-            --text-dark: #333333;
-            --text-light: #666666;
-            --white: #ffffff;
-            --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-        }
-
-        .container {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            max-width: 1200px;
-            width: 100%;
-            background: var(--white);
-            border-radius: 20px;
-            box-shadow: var(--shadow);
-            overflow: hidden;
-        }
-        
-        .alert.info {
-            background: #e3f2fd;
-            color: #1565c0;
-            border: 1px solid #1565c0;
-        }
     </style>
     
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-functions-compat.js"></script>
+    <!-- EmailJS SDK -->
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
 </head>
 <body>
     <div class="container">
@@ -392,7 +357,17 @@
         // Inicializar Firebase
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
-        // const functions = firebase.functions(); // Para Cloud Functions
+
+        // 📧 Configuración de EmailJS
+        // REEMPLAZA ESTOS DATOS CON TUS CREDENCIALES DE EMAILJS
+        const EMAILJS_CONFIG = {
+            SERVICE_ID: 'YOUR_SERVICE_ID', // Reemplaza con tu Service ID
+            TEMPLATE_ID: 'YOUR_TEMPLATE_ID', // Reemplaza con tu Template ID
+            PUBLIC_KEY: 'YOUR_PUBLIC_KEY' // Reemplaza con tu Public Key
+        };
+
+        // Inicializar EmailJS
+        emailjs.init(EMAILJS_CONFIG.PUBLIC_KEY);
 
         document.addEventListener('DOMContentLoaded', function() {
             const today = new Date().toISOString().split('T')[0];
@@ -496,21 +471,21 @@
                     time: document.querySelector('.time-slot.selected')?.dataset.time,
                     people: parseInt(document.getElementById('peopleCount').value),
                     specialRequests: document.getElementById('specialRequests').value,
-                    status: 'pending', // ← CAMBIADO: Ahora es "pending"
+                    status: 'pending',
                     createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                     reservationCode: generateReservationCode(),
-                    confirmationToken: generateConfirmationToken() // ← NUEVO: Token para confirmación
+                    confirmationToken: generateConfirmationToken()
                 };
                 
                 if (!reservationData.time) {
                     throw new Error('Por favor selecciona una hora');
                 }
                 
-                // 🔥 Guardar reserva como "pending"
+                // 🔥 Guardar reserva en Firestore
                 const docRef = await db.collection('reservations').add(reservationData);
                 console.log('Reserva pendiente guardada con ID:', docRef.id);
                 
-                // 📧 Llamar a Cloud Function para enviar email de confirmación
+                // 📧 Enviar email de confirmación con EmailJS
                 await sendConfirmationEmail(reservationData, docRef.id);
                 
                 successAlert.textContent = '¡Reserva enviada! Por favor revisa tu email para confirmar la reserva.';
@@ -530,18 +505,39 @@
             }
         });
 
-        // 🔄 Función para enviar email de confirmación
+        // 📧 Función para enviar email de confirmación con EmailJS
         async function sendConfirmationEmail(reservationData, reservationId) {
-    // Ahora Cloud Functions se encarga automáticamente
-    // cuando se crea la reserva en Firestore
-    console.log('Reserva guardada, Cloud Functions enviará el email...');
-    
-    // Para desarrollo, aún mostrar el link
-    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-        const confirmUrl = `${window.location.origin}/confirm.html?token=${reservationData.confirmationToken}&id=${reservationId}`;
-        console.log('🔗 LINK DE CONFIRMACIÓN (desarrollo):', confirmUrl);
-    }
-}
+            try {
+                const confirmationLink = `${window.location.origin}/confirm.html?token=${reservationData.confirmationToken}&id=${reservationId}`;
+                
+                const templateParams = {
+                    to_email: reservationData.customerEmail,
+                    to_name: reservationData.customerName,
+                    from_name: 'Restaurante Sabores',
+                    reservation_date: reservationData.date,
+                    reservation_time: reservationData.time,
+                    reservation_people: reservationData.people,
+                    reservation_code: reservationData.reservationCode,
+                    confirmation_link: confirmationLink,
+                    customer_name: reservationData.customerName,
+                    customer_phone: reservationData.customerPhone,
+                    special_requests: reservationData.specialRequests || 'Ninguno'
+                };
+
+                const response = await emailjs.send(
+                    EMAILJS_CONFIG.SERVICE_ID,
+                    EMAILJS_CONFIG.TEMPLATE_ID,
+                    templateParams
+                );
+
+                console.log('✅ Email enviado exitosamente:', response);
+                return response;
+                
+            } catch (error) {
+                console.error('❌ Error enviando email:', error);
+                throw new Error('No se pudo enviar el email de confirmación');
+            }
+        }
 
         function validateForm() {
             const name = document.getElementById('customerName').value;
