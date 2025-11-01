@@ -58,7 +58,7 @@ exports.sendFinalConfirmation = functions.firestore
 
 // Función para enviar el email de confirmación (con link)
 async function sendConfirmationEmail(reservation, reservationId) {
-    const confirmationLink = `https://IUUZANTO.github.io/restaurante-reservas/confirm.html?token=${reservation.confirmationToken}&id=${reservationId}`;
+    const confirmationLink = `https://uiuzanto.github.io/restaurante-reservas/confirm.html?token=${reservation.confirmationToken}&id=${reservationId}`;
     
     const msg = {
         to: reservation.customerEmail,
@@ -135,3 +135,4 @@ async function sendFinalConfirmationEmail(reservation, reservationId) {
 
     await sgMail.send(msg);
 }
+
