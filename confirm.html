@@ -139,57 +139,62 @@
         }
 
         // Procesar confirmación cuando carga la página
-        document.addEventListener('DOMContentLoaded', async function() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const token = urlParams.get('token');
-            const reservationId = urlParams.get('id');
+        // Procesar confirmación cuando carga la página
+document.addEventListener('DOMContentLoaded', async function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('token');
+    const reservationId = urlParams.get('id');
 
-            if (!token || !reservationId) {
-                showError('Link de confirmación inválido');
-                return;
-            }
+    if (!token || !reservationId) {
+        showError('Link de confirmación inválido');
+        return;
+    }
 
-            try {
-                // Buscar la reserva
-                const docRef = db.collection('reservations').doc(reservationId);
-                const doc = await docRef.get();
+    try {
+        // Buscar la reserva
+        const docRef = db.collection('reservations').doc(reservationId);
+        const doc = await docRef.get();
 
-                if (!doc.exists) {
-                    showError('Reserva no encontrada');
-                    return;
-                }
+        if (!doc.exists) {
+            showError('Reserva no encontrada');
+            return;
+        }
 
-                const reservation = doc.data();
+        const reservation = doc.data();
 
-                // Verificar token
-                if (reservation.confirmationToken !== token) {
-                    showError('Token de confirmación inválido');
-                    return;
-                }
+        // Verificar token
+        if (reservation.confirmationToken !== token) {
+            showError('Token de confirmación inválido');
+            return;
+        }
 
-                // Verificar que no esté ya confirmada
-                if (reservation.status === 'confirmed') {
-                    showError('Esta reserva ya estaba confirmada');
-                    return;
-                }
+        // Verificar que no esté ya confirmada
+        if (reservation.status === 'confirmed') {
+            showError('Esta reserva ya estaba confirmada');
+            return;
+        }
 
-                // Actualizar estado a "confirmed"
-                await docRef.update({
-                    status: 'confirmed',
-                    confirmedAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
+        // Actualizar estado a "confirmed"
+        await docRef.update({
+            status: 'confirmed',
+            confirmedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
 
-                // Enviar email de confirmación final
-                await sendFinalConfirmationEmail(reservation);
+        // ✅ OBTENER DATOS ACTUALIZADOS
+        const updatedDoc = await docRef.get();
+        const updatedReservation = updatedDoc.data();
 
-                // Mostrar éxito
-                document.getElementById('loadingMessage').style.display = 'none';
-                document.getElementById('successMessage').style.display = 'block';
+        // Enviar email de confirmación final CON DATOS ACTUALIZADOS
+        await sendFinalConfirmationEmail(updatedReservation);
 
-            } catch (error) {
-                console.error('Error confirmando reserva:', error);
-                showError('Error al confirmar la reserva: ' + error.message);
-            }
+        // Mostrar éxito
+        document.getElementById('loadingMessage').style.display = 'none';
+        document.getElementById('successMessage').style.display = 'block';
+
+    } catch (error) {
+        console.error('Error confirmando reserva:', error);
+        showError('Error al confirmar la reserva: ' + error.message);
+    }
         });
 
         function showError(message) {
@@ -200,4 +205,5 @@
     </script>
 </body>
 </html>
+
 
