@@ -507,7 +507,7 @@
         // 📧 Función para enviar email de confirmación con EmailJS
         async function sendConfirmationEmail(reservationData, reservationId) {
             try {
-                const confirmationLink = `${window.location.origin}/confirm.html?token=${reservationData.confirmationToken}&id=${reservationId}`;
+               const confirmationLink = `https://uiuzanto.github.io/restaurante-reservas/confirm.html?token=${reservationData.confirmationToken}&id=${reservationId}`;
                 
                 const templateParams = {
                     to_email: reservationData.customerEmail,
@@ -574,4 +574,5 @@
     </script>
 </body>
 </html>
+
 
